@@ -101,6 +101,37 @@ def loadDataSet_CV2(allFile,dim,labelNum):
 	print testDataSet
 	print testLabel
 	return mat(trainDataSet), mat(trainLabel), mat(testDataSet), mat(testLabel)
+
+def loadDataSet_num(allFile,dim,labelNum):
+	Record = []
+	with open(allFile, 'r') as fr:
+		for line in fr.readlines():
+			record = zeros(dim+labelNum)
+			lineList = line.strip().split(',')
+			for i in range(len(lineList)):
+				record[i] = lineList[i]
+			Record.append(record)
+	Record = mat(Record)
+	allIndex = [x for x in range(Record.shape[0])]
+	trainIndex = random.sample([x for x in range(Record.shape[0])],Record.shape[0]/2)
+	testIndex = list(set(allIndex).difference(set(trainIndex)))
+	trainIndex.sort()
+	print trainIndex
+	print testIndex
+	_trainDataSet = Record[trainIndex,:]
+	_testDataSet = Record[testIndex,:]
+
+	trainDataSet = (mat(_trainDataSet).T)[0:dim].T
+	trainLabel = (mat(_trainDataSet).T)[dim:].T
+	
+	testDataSet = (mat(_testDataSet).T)[0:dim].T
+	testLabel = (mat(_testDataSet).T)[dim:].T
+
+	print trainDataSet
+	print trainLabel
+	print testDataSet
+	print testLabel
+	return mat(trainDataSet), mat(trainLabel), mat(testDataSet), mat(testLabel)
 	
 def initMatrix_H2(mat_V, mat_W):
 	print mat_W.shape[0], mat_V.shape[0]
@@ -210,10 +241,14 @@ def buildStump(dataArr,classLabels):
     return thresh#,minError#,bestClasEst
 
 if __name__ == '__main__':
-	
+	trainDataSet, trainLabel, testDataSet, testLabel = loadDataSet_num('./mediamill.txt',120,101)
 	#trainDataSet, trainLabel, testDataSet, testLabel = loadDataSet('./enron-train.txt','./enron-test.txt',1001,53)
-	trainDataSet, trainLabel, testDataSet, testLabel = loadDataSet_CV('./enron.txt',1001,53)
-	mat_H,LabelPro = initMatrix_H2(trainLabel.T,trainDataSet.T)
+	#trainDataSet, trainLabel, testDataSet, testLabel = loadDataSet_CV2('./langLog.txt',1004,75)
+	#trainDataSet, trainLabel, testDataSet, testLabel = loadDataSet_CV('./tmc2007-500.txt',500,22)
+	#mat_H,LabelPro = initMatrix_H2(trainLabel.T,trainDataSet.T)
+
+	mat_H = ones((trainDataSet.shape[1], trainLabel.shape[1]))
+	LabelPro = ones((trainDataSet.shape[1], trainLabel.shape[1]))
 	newMat_H = (mat_H+1e-9)/(LabelPro+1e-9)
 	print newMat_H
 	_newMat_H = zeros((newMat_H.shape[0],newMat_H.shape[1]))
@@ -225,10 +260,10 @@ if __name__ == '__main__':
 	#mat_H[nonzero(newMat_H>1)[0],nonzero(newMat_H>1)[1]] = 1
 	#mat_H[nonzero(newMat_H<=1)[0],nonzero(newMat_H<=1)[1]] = 0
 	print sum(mat_H)
-	print sum(mat_H,0)
-	print sum(mat_H,1)
-	print sum(_newMat_H,0)
-	print sum(_newMat_H,1)
+	#print sum(mat_H,0)
+	#print sum(mat_H,1)
+	#print sum(_newMat_H,0)
+	#print sum(_newMat_H,1)
 	print nonzero((sum(mat_H,1))>3)
 	print nonzero((sum(_newMat_H,1))>3)
 
@@ -258,19 +293,15 @@ if __name__ == '__main__':
 	testLabel = cPickle.load(open('./testLabel.pkl', 'rb'))
 	mat_H = cPickle.load(open('./mat_H.pkl', 'rb'))
 	LabelPro = cPickle.load(open('./LabelPro.pkl', 'rb'))
-
-	mat_H = AppNmf(trainLabel,trainDataSet,mat_H,100)
+	# 1
+	mat_H = AppNmf(trainLabel,trainDataSet,mat_H,50)
 	print mat_H
-	print sum(mat_H,0)
-	print sum(mat_H,1)
+	#print sum(mat_H,0)
+	#print sum(mat_H,1)
 	new_= zeros((mat_H.shape[0],mat_H.shape[1]))
 	new_[nonzero(mat_H>0)[0],nonzero(mat_H>0)[1]] = 1
 	print sum(new_,0)
 	
-	'''
-	trainResult = zeros((trainLabel.shape[0],trainLabel.shape[1]))	
-	trainResult[nonzero((trainDataSet*mat_H)>=0.7)[0],nonzero((trainDataSet*mat_H)>=0.7)[1]] = 1
-	'''
 	result = zeros((testLabel.shape[0],testLabel.shape[1]))	
 	result = testDataSet*mat_H
 	
@@ -284,8 +315,15 @@ if __name__ == '__main__':
 		thresh[i] = buildStump(trainResult,(trainLabel.T[i].T))
 		print i,thresh[i]
 	print thresh
-	
-	#print result.max(1)
+	# 1
+	'''
+	trainResult = zeros((trainLabel.shape[0],trainLabel.shape[1]))
+	for j in range(trainResult.shape[1]):
+		trainResult[nonzero((trainDataSet*mat_H)[:,j]>thresh[j])[0],nonzero((trainDataSet*mat_H)[:,j]>thresh[j])[1]] = 1
+
+	errorRatio = sum(abs(trainResult - trainLabel),0)/trainLabel.shape[0]
+	'''
+	#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	for i in range(result.shape[0]):
 		result[i,nonzero(result[i]>=result[i].max())[1]] = 1
 
@@ -323,7 +361,10 @@ if __name__ == '__main__':
 				error2 += 1
 				error22[j] += 1
 				#print result[i][j],testLabel[i][j]
-		_sum += float(sum(testLabel[i]) - error2)/(sum(testLabel[i]) + error1)
+		if (sum(testLabel[i]) + error1) == 0:
+			_sum += 1
+		else:
+			_sum += float(sum(testLabel[i]) - error2)/(sum(testLabel[i]) + error1)
 		if sum(testLabel[i]) != 0:
 			recall = float(sum(testLabel[i]) - error2)/(sum(testLabel[i]))
 		else:
@@ -336,7 +377,7 @@ if __name__ == '__main__':
 		else:
 			precision = 1
 			allPrecison += 1
-		if float(sum(testLabel[i]) - error2)/(sum(testLabel[i]) + error1) == 1:
+		if float(sum(testLabel[i]) - error2)/(sum(testLabel[i]) + error1) == 1 or (sum(testLabel[i]) + error1) == 0:
 			allRight += 1
 		if (precision+recall) != 0:
 			allF1 += 2*precision*recall/(precision+recall)
