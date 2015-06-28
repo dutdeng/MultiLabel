@@ -289,7 +289,7 @@ def buildStump(dataArr,classLabels):
 		else:
 			recall = 1
                 #weightedError = sum(errArr1)  #calc total error multiplied by D
-		weightedError = 0.75*error1_0 + error0_1
+		weightedError = 0.25*error1_0 + error0_1
 		if (precison + recall) != 0:
 			F1 = 2*precison*recall/(precison + recall)
 		else:
@@ -316,7 +316,7 @@ def buildStump(dataArr,classLabels):
 
 if __name__ == '__main__':
 	#trainDataSet, trainLabel, testDataSet, testLabel = loadDataSet3()
-	trainDataSet, trainLabel, testDataSet, testLabel = loadDataSet_CV('./bibtex.txt',1836,159)
+	trainDataSet, trainLabel, testDataSet, testLabel = loadDataSet_CV('./delicious.txt',500,983)
 	#trainDataSet, trainLabel, testDataSet, testLabel = loadDataSet_CV2('./langLog.txt',1004,75)
 	#trainDataSet, trainLabel, testDataSet, testLabel = loadDataSet_num('./mediamill.txt',120,101)
 	mat_H1 = ones((trainDataSet.shape[1], trainLabel.shape[1]))/120
@@ -340,8 +340,10 @@ if __name__ == '__main__':
 	
 	trainResult = zeros((trainLabel.shape[0],trainLabel.shape[1]))
 	thresh = zeros(trainLabel.shape[1])
+	_trainDataSet = ones((trainDataSet.shape[0],trainDataSet.shape[1]))-trainDataSet
+	trainAllResult = trainDataSet*mat_H1 + _trainDataSet*mat_H2
 	for i in range(trainLabel.shape[1]):
-		trainResult = (trainDataSet*mat_H1 + (ones((trainDataSet.shape[0],trainDataSet.shape[1]))-trainDataSet)*mat_H2).T[i].T
+		trainResult = trainAllResult.T[i].T
 		#for j in range(trainResult.shape[0]):
 		#	print trainResult[j],(trainLabel.T[i].T)[j]
 		#raw_input()
